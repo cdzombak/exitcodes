@@ -1,0 +1,6 @@
+github.com/dogenzaka/tsv v0.0.0-20150215104501-8e02e611b1fb h1:+CCZUz1glhc18+Z/z06vNGsEv8Q1fUFDhC2QrXVCj5s=
+github.com/dogenzaka/tsv v0.0.0-20150215104501-8e02e611b1fb/go.mod h1:J3mq4adhcOHLw4cdjghQ2/SiLwoERsm6yYmlCJnnY3M=
+github.com/iancoleman/strcase v0.3.0 h1:nTXanmYxhfFAMjZL34Ov6gkzEsSJZ5DbhxWjvSASxEI=
+github.com/iancoleman/strcase v0.3.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
+golang.org/x/text v0.20.0 h1:gK/Kv2otX8gz+wn7Rmb3vT96ZwuoxnQlY+HlJVj7Qug=
+golang.org/x/text v0.20.0/go.mod h1:D4IsuqiFMhST5bX19pQ9ikHC2GsaKyk/oF+pn3ducp4=

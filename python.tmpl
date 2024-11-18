@@ -1,0 +1,6 @@
+from typing import Final
+
+{{ range . }}
+# {{ .PyStyleName }}: {{ .Description }} (from {{ .Group }})
+{{ .PyStyleName }}: Final = {{ .Code }}
+{{ end }}

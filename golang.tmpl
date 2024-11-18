@@ -1,0 +1,8 @@
+package exitcode_go
+
+const (
+{{ range . }}
+	// {{ .GoStyleName }} - {{ .Description }} (from {{ .Group }})
+	{{ .GoStyleName }} = {{ .Code }}
+{{ end }}
+)

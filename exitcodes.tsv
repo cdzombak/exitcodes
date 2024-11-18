@@ -1,0 +1,66 @@
+0	EXIT_SUCCESS			Generic success code.	libc
+1	EXIT_FAILURE			Generic failure or unspecified error.	libc
+2	EXIT_INVALIDARGUMENT		InvalidArgument	Invalid or excess arguments.	LSB
+3	EXIT_NOTIMPLEMENTED		NotImplemented	Unimplemented feature.	LSB
+4	EXIT_NOPERMISSION		NoPermission	The user has insufficient privileges.	LSB
+5	EXIT_NOTINSTALLED		NotInstalled	The program is not installed.	LSB
+6	EXIT_NOTCONFIGURED		NotConfigured	The program is not configured.	LSB
+7	EXIT_NOTRUNNING		NotRunning	The program is not running.	LSB
+64	EX_USAGE			Command line usage error	BSD
+65	EX_DATAERR		DataErr	Data format error	BSD
+66	EX_NOINPUT		NoInput	Cannot open input	BSD
+67	EX_NOUSER		NoUser	Addressee unknown	BSD
+68	EX_NOHOST		NoHost	Host name unknown	BSD
+69	EX_UNAVAILABLE			Service unavailable	BSD
+70	EX_SOFTWARE			internal software error	BSD
+71	EX_OSERR		OSErr	System error (e.g., can't fork)	BSD
+72	EX_OSFILE		OSFile	Critical OS file missing	BSD
+73	EX_CANTCREAT		CantCreat	Can't create (user) output file	BSD
+74	EX_IOERR		IOErr	Input/output error	BSD
+75	EX_TEMPFAIL		TempFail	Temporary failure; user is invited to retry	BSD
+76	EX_PROTOCOL			Remote error in protocol	BSD
+77	EX_NOPERM	NOPERM_BSD	NoPermBSD	Permission denied	BSD
+78	EX_CONFIG	CONFIG_BSD	ConfigBSD	Configuration error	BSD
+200	EXIT_CHDIR			Changing to the requested working directory failed.	systemd
+201	EXIT_NICE			Failed to set up process scheduling priority (nice level).	systemd
+202	EXIT_FDS			Failed to close unwanted file descriptors, or to adjust passed file descriptors.	systemd
+203	EXIT_EXEC			The actual process execution failed (specifically, the execve(2) system call). Most likely this is caused by a missing or non-accessible executable file.	systemd
+204	EXIT_MEMORY			Failed to perform an action due to memory shortage.	systemd
+205	EXIT_LIMITS			Failed to adjust resource limits.	systemd
+206	EXIT_OOM_ADJUST			Failed to adjust the OOM setting.	systemd
+207	EXIT_SIGNAL_MASK			Failed to set process signal mask.	systemd
+208	EXIT_STDIN			Failed to set up standard input.	systemd
+209	EXIT_STDOUT			Failed to set up standard output.	systemd
+210	EXIT_CHROOT			Failed to change root directory (chroot(2)).	systemd
+211	EXIT_IOPRIO			Failed to set up IO scheduling priority.	systemd
+212	EXIT_TIMERSLACK		TimerSlack	Failed to set up timer slack.	systemd
+213	EXIT_SECUREBITS		SecureBits	Failed to set process secure bits.	systemd
+214	EXIT_SETSCHEDULER		SetScheduler	Failed to set up CPU scheduling.	systemd
+215	EXIT_CPUAFFINITY		CPUAffinity	Failed to set up CPU affinity.	systemd
+216	EXIT_GROUP			Failed to determine or change group credentials.	systemd
+217	EXIT_USER			Failed to determine or change user credentials, or to set up user namespacing.	systemd
+218	EXIT_CAPABILITIES			Failed to drop capabilities, or apply ambient capabilities.	systemd
+219	EXIT_CGROUP		CGroup	Setting up the service control group failed.	systemd
+220	EXIT_SETSID		SetSID	Failed to create new process session.	systemd
+221	EXIT_CONFIRM			Execution has been cancelled by the user. See the systemd.confirm_spawn= kernel command line setting on kernel-command-line(7) for details.	systemd
+222	EXIT_STDERR		StdErr	Failed to set up standard error output.	systemd
+224	EXIT_PAM		PAM	Failed to set up PAM session.	systemd
+225	EXIT_NETWORK			Failed to set up network namespacing.	systemd
+226	EXIT_NAMESPACE			Failed to set up mount, UTS, or IPC namespacing.	systemd
+227	EXIT_NO_NEW_PRIVILEGES			Failed to disable new privileges.	systemd
+228	EXIT_SECCOMP			Failed to apply system call filters.	systemd
+229	EXIT_SELINUX_CONTEXT		SELinuxContext	Determining or changing SELinux context failed.	systemd
+230	EXIT_PERSONALITY			Failed to set up an execution domain (personality).	systemd
+231	EXIT_APPARMOR_PROFILE		AppArmorProfile	Failed to prepare changing AppArmor profile.	systemd
+232	EXIT_ADDRESS_FAMILIES			Failed to restrict address families.	systemd
+233	EXIT_RUNTIME_DIRECTORY			Setting up runtime directory failed.	systemd
+235	EXIT_CHOWN			Failed to adjust socket ownership. Used for socket units only.	systemd
+236	EXIT_SMACK_PROCESS_LABEL			Failed to set SMACK label.	systemd
+237	EXIT_KEYRING			Failed to set up kernel keyring.	systemd
+238	EXIT_STATE_DIRECTORY			Failed to set up unit's state directory.	systemd
+239	EXIT_CACHE_DIRECTORY			Failed to set up unit's cache directory.	systemd
+240	EXIT_LOGS_DIRECTORY			Failed to set up unit's logging directory.	systemd
+241	EXIT_CONFIGURATION_DIRECTORY			Failed to set up unit's configuration directory.	systemd
+242	EXIT_NUMA_POLICY		NUMAPolicy	Failed to set up unit's NUMA memory policy.	systemd
+243	EXIT_CREDENTIALS			Failed to set up unit's credentials.	systemd
+245	EXIT_BPF		BPF	Failed to apply BPF restrictions.	systemd
