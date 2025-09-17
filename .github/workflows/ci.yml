@@ -148,8 +148,8 @@ jobs:
       - name: Commit and push changes to Go repo
         working-directory: exitcode_go
         run: |
-          git config user.name "Devin AI"
-          git config user.email "devin-ai-integration[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add generated.go
           if git diff --staged --quiet; then
             echo "No changes to commit"
@@ -194,8 +194,8 @@ jobs:
       - name: Commit and push changes to Python repo
         working-directory: exitcode_py
         run: |
-          git config user.name "Devin AI"
-          git config user.email "devin-ai-integration[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add exitcode/generated.py
           if git diff --staged --quiet; then
             echo "No changes to commit"
