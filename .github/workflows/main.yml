@@ -1,0 +1,53 @@
+---
+name: Main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Run actionlint
+        uses: raven-actions/actionlint@v2
+
+  golangci-lint:
+    name: Go Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+
+  generator-test:
+    name: Test Exit Code Generator
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Test Go generator
+        run: go run main.go -go /tmp/test.go -py /tmp/test.py
+      - name: Verify Go output exists
+        run: test -f /tmp/test.go
+      - name: Verify Python output exists
+        run: test -f /tmp/test.py

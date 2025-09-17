@@ -1,0 +1,245 @@
+---
+name: CI
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: stable
+
+jobs:
+  meta:
+    name: Derive Build Metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Derive version string
+        id: bin_version
+        run: echo "bin_version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+      - name: bin_version
+        run: "echo bin_version: ${{ steps.bin_version.outputs.bin_version }}"
+      - name: Check if this is a running version tag update
+        id: running_version_tag
+        run: |
+          if [ -z "${{ github.event.ref }}" ]; then
+              echo "is_running_version_tag_update=false" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+$ ]]; then
+              echo "is_running_version_tag_update=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event.ref }}" =~ ^refs/tags/v[0-9]+$ ]]; then
+              echo "is_running_version_tag_update=true" >> "$GITHUB_OUTPUT"
+          else
+              echo "is_running_version_tag_update=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: is_running_version_tag
+        run: "echo is_running_version_tag_update: ${{ steps.running_version_tag.outputs.is_running_version_tag_update }}"
+    outputs:
+      bin_name: ${{ github.event.repository.name }}
+      bin_version: ${{ steps.bin_version.outputs.bin_version }}
+      is_prerelease: >-
+        ${{
+          steps.running_version_tag.outputs.is_running_version_tag_update != 'true' &&
+          startsWith(github.ref, 'refs/tags/v') &&
+            (contains(github.ref, '-alpha.')
+            || contains(github.ref, '-beta.')
+            || contains(github.ref, '-rc.'))
+        }}
+      is_release: >-
+        ${{
+          steps.running_version_tag.outputs.is_running_version_tag_update != 'true' &&
+          startsWith(github.ref, 'refs/tags/v') &&
+            !(contains(github.ref, '-alpha.')
+            || contains(github.ref, '-beta.')
+            || contains(github.ref, '-rc.'))
+        }}
+      is_running_version_tag_update: ${{ steps.running_version_tag.outputs.is_running_version_tag_update }}
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+
+  generate:
+    name: Generate Exit Codes
+    needs: [meta, lint]
+    if: needs.meta.outputs.is_running_version_tag_update != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Generate Go exit codes
+        run: go run main.go -go generated.go -py generated.py
+      - name: Upload generated files
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-exitcodes
+          path: |
+            generated.go
+            generated.py
+
+  release:
+    name: GitHub Release
+    needs: [meta, generate]
+    if: >-
+      needs.meta.outputs.is_release == 'true' ||
+      needs.meta.outputs.is_prerelease == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Download generated files
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-exitcodes
+          path: generated
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: generated/*
+          prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
+          draft: false
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+  update-go-repo:
+    name: Update Go Repository
+    needs: [meta, generate, release]
+    if: >-
+      needs.meta.outputs.is_release == 'true' ||
+      needs.meta.outputs.is_prerelease == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exitcodes
+        uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Checkout exitcode_go repository
+        uses: actions/checkout@v5
+        with:
+          repository: cdzombak/exitcode_go
+          token: ${{ secrets.XREPO_GITHUB_TOKEN }}
+          path: exitcode_go
+      - name: Generate Go exit codes
+        run: go run main.go -go exitcode_go/generated.go
+      - name: Commit and push changes to Go repo
+        working-directory: exitcode_go
+        run: |
+          git config user.name "Devin AI"
+          git config user.email "devin-ai-integration[bot]@users.noreply.github.com"
+          git add generated.go
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update generated exit codes to v${{ needs.meta.outputs.bin_version }}"
+            git tag "v${{ needs.meta.outputs.bin_version }}"
+            git push origin main
+            git push origin "v${{ needs.meta.outputs.bin_version }}"
+          fi
+      - name: Create Go repository release
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: cdzombak/exitcode_go
+          token: ${{ secrets.XREPO_GITHUB_TOKEN }}
+          tag_name: v${{ needs.meta.outputs.bin_version }}
+          prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
+          draft: false
+          generate_release_notes: true
+
+  update-python-repo:
+    name: Update Python Repository
+    needs: [meta, generate, release]
+    if: >-
+      needs.meta.outputs.is_release == 'true' ||
+      needs.meta.outputs.is_prerelease == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exitcodes
+        uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Checkout exitcode_py repository
+        uses: actions/checkout@v5
+        with:
+          repository: cdzombak/exitcode_py
+          token: ${{ secrets.XREPO_GITHUB_TOKEN }}
+          path: exitcode_py
+      - name: Generate Python exit codes
+        run: go run main.go -py exitcode_py/exitcode/generated.py
+      - name: Commit and push changes to Python repo
+        working-directory: exitcode_py
+        run: |
+          git config user.name "Devin AI"
+          git config user.email "devin-ai-integration[bot]@users.noreply.github.com"
+          git add exitcode/generated.py
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update generated exit codes to v${{ needs.meta.outputs.bin_version }}"
+            git tag "v${{ needs.meta.outputs.bin_version }}"
+            git push origin main
+            git push origin "v${{ needs.meta.outputs.bin_version }}"
+          fi
+      - name: Create Python repository release
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: cdzombak/exitcode_py
+          token: ${{ secrets.XREPO_GITHUB_TOKEN }}
+          tag_name: v${{ needs.meta.outputs.bin_version }}
+          prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
+          draft: false
+          generate_release_notes: true
+
+  ntfy:
+    name: Ntfy
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    needs: [meta, lint, generate, release, update-go-repo, update-python-repo]
+    steps:
+      - name: Send success notification
+        uses: niniyas/ntfy-action@master
+        if: ${{ !contains(needs.*.result, 'failure') && (needs.meta.outputs.is_release == 'true' || needs.meta.outputs.is_prerelease == 'true') }}
+        with:
+          url: "https://ntfy.cdzombak.net"
+          topic: "gha-builds"
+          priority: 3
+          headers: '{"authorization": "Bearer ${{ secrets.NTFY_TOKEN }}"}'
+          tags: white_check_mark
+          title: ${{ github.event.repository.name }} ${{ needs.meta.outputs.bin_version }} available
+          details: ${{ github.event.repository.name }} version ${{ needs.meta.outputs.bin_version }} is now available.
+      - name: Send failure notification
+        uses: niniyas/ntfy-action@master
+        if: ${{ contains(needs.*.result, 'failure') }}
+        with:
+          url: "https://ntfy.cdzombak.net"
+          topic: "gha-builds"
+          priority: 3
+          headers: '{"authorization": "Bearer ${{ secrets.NTFY_TOKEN }}"}'
+          tags: no_entry
+          title: ${{ github.event.repository.name }} ${{ needs.meta.outputs.bin_version }} build failed
+          details: Build failed for ${{ github.event.repository.name }} version ${{ needs.meta.outputs.bin_version }}.
