@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # py313 below must be kept in step with PYTHON_VERSION.
+  PYTHON_VERSION: "3.13"
+  RUFF_VERSION: "0.16.3"
+
 jobs:
   actionlint:
     name: Actionlint
@@ -35,3 +40,51 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           version: latest
+
+  # The downstream repos lint their generated files, so a template change that
+  # emits unformatted code breaks their CI rather than this repo's. Check the
+  # output here, where the templates actually live.
+  generated-output:
+    name: Check Generated Output
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install ruff
+        run: pipx install "ruff==${RUFF_VERSION}"
+      - name: Generate
+        run: |
+          mkdir -p "${RUNNER_TEMP}/gen"
+          go run main.go \
+            -go "${RUNNER_TEMP}/gen/generated.go" \
+            -py "${RUNNER_TEMP}/gen/generated.py"
+      - name: Check Go output is gofmt-clean
+        run: |
+          unformatted="$(gofmt -l "${RUNNER_TEMP}/gen")"
+          if [ -n "$unformatted" ]; then
+            echo "Generated Go output is not gofmt-clean:"
+            gofmt -d "${RUNNER_TEMP}/gen"
+            exit 1
+          fi
+      - name: Check Go output compiles
+        working-directory: ${{ runner.temp }}/gen
+        run: |
+          printf 'module generated\n\ngo 1.21\n' > go.mod
+          go build ./...
+      - name: Check Python output is ruff-clean
+        run: |
+          ruff check --target-version py313 --no-cache "${RUNNER_TEMP}/gen/generated.py"
+          ruff format --check --target-version py313 --no-cache "${RUNNER_TEMP}/gen/generated.py"
+      - name: Check Python output imports
+        env:
+          PYTHONPATH: ${{ runner.temp }}/gen
+        run: |
+          python -c "import generated; assert generated.SUCCESS == 0; assert generated.USAGE == 64; assert generated.BPF == 245"
