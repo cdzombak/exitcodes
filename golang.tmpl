@@ -1,8 +1,9 @@
 package exitcode_go
 
 const (
-{{ range . }}
+{{- range . }}
+
 	// {{ .GoStyleName }} - {{ .Description }} (from {{ .Group }})
 	{{ .GoStyleName }} = {{ .Code }}
-{{ end }}
+{{- end }}
 )
