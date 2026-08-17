@@ -1,0 +1,119 @@
+---
+name: Sync Generated Code
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-generated
+  cancel-in-progress: false
+
+env:
+  BRANCH_PREFIX: cdz/exitcodes-sync-
+
+jobs:
+  sync:
+    name: Sync ${{ matrix.lang }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lang: Go
+            repository: cdzombak/exitcode_go
+            flag: "-go"
+            output: generated.go
+          - lang: Python
+            repository: cdzombak/exitcode_py
+            flag: "-py"
+            output: exitcode/__init__.py
+    steps:
+      - name: Checkout exitcodes
+        uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Checkout ${{ matrix.repository }}
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ matrix.repository }}
+          token: ${{ secrets.XREPO_GITHUB_TOKEN }}
+          path: target
+      - name: Generate exit codes
+        run: go run main.go ${{ matrix.flag }} "target/${{ matrix.output }}"
+
+      # The branch name is derived from the hash of the generated file, so
+      # re-running with unchanged output reuses the existing branch and PR
+      # instead of opening a duplicate.
+      - name: Commit and push
+        id: push
+        working-directory: target
+        env:
+          OUTPUT: ${{ matrix.output }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$OUTPUT"
+          if git diff --staged --quiet; then
+            echo "No changes to $OUTPUT."
+            echo "branch=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          branch="${BRANCH_PREFIX}$(git hash-object "$OUTPUT" | cut -c1-12)"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "Branch $branch already exists; nothing to push."
+            exit 0
+          fi
+          git checkout -b "$branch"
+          git commit -m "Update generated exit codes
+
+          Generated from ${{ github.repository }}@${{ github.sha }}."
+          git push origin "$branch"
+
+      - name: Open pull request
+        if: steps.push.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ secrets.XREPO_GITHUB_TOKEN }}
+          REPO: ${{ matrix.repository }}
+          BRANCH: ${{ steps.push.outputs.branch }}
+        run: |
+          set -euo pipefail
+          if [ -n "$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
+            echo "A pull request for $BRANCH is already open."
+            exit 0
+          fi
+          gh pr create \
+            --repo "$REPO" \
+            --base main \
+            --head "$BRANCH" \
+            --title "Update generated exit codes" \
+            --body "Regenerated from [${{ github.repository }}@$(echo "${{ github.sha }}" | cut -c1-7)](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).
+
+          Opened automatically by the \`Sync Generated Code\` workflow."
+
+      - name: Close outdated pull requests
+        env:
+          GH_TOKEN: ${{ secrets.XREPO_GITHUB_TOKEN }}
+          REPO: ${{ matrix.repository }}
+          CURRENT_BRANCH: ${{ steps.push.outputs.branch }}
+        run: |
+          set -euo pipefail
+          gh pr list --repo "$REPO" --state open --json number,headRefName \
+            --jq '.[]
+                  | select(.headRefName | startswith(env.BRANCH_PREFIX))
+                  | select(.headRefName != env.CURRENT_BRANCH)
+                  | .number' \
+            | while read -r n; do
+                echo "Closing outdated pull request #$n in $REPO."
+                gh pr close "$n" --repo "$REPO" --delete-branch \
+                  --comment "Superseded by newer generated output from ${{ github.repository }}."
+              done
